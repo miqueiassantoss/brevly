@@ -1,11 +1,55 @@
 import type { FastifyInstance } from 'fastify'
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { db } from '../db/index.js'
 import { links } from '../db/schema.js'
 import { eq, desc, sql } from 'drizzle-orm'
+import { s3 } from '../lib/cloudflare.js'
 
 const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/
 
 export async function linksRoutes(app: FastifyInstance) {
+  app.get('/links/export', async (_request, reply) => {
+    const allLinks = await db
+      .select()
+      .from(links)
+      .orderBy(desc(links.createdAt))
+
+    const header = 'id,original_url,shortened_url,access_count,created_at'
+    const rows = allLinks.map(link =>
+      [
+        link.id,
+        `"${link.originalUrl.replace(/"/g, '""')}"`,
+        link.shortenedUrl,
+        link.accessCount,
+        link.createdAt.toISOString(),
+      ].join(',')
+    )
+    const csv = [header, ...rows].join('\n')
+
+    const key = `exports/links-${Date.now()}.csv`
+
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: process.env.CLOUDFLARE_BUCKET,
+        Key: key,
+        Body: csv,
+        ContentType: 'text/csv',
+      })
+    )
+
+    const downloadUrl = await getSignedUrl(
+      s3,
+      new GetObjectCommand({
+        Bucket: process.env.CLOUDFLARE_BUCKET,
+        Key: key,
+      }),
+      { expiresIn: 300 }
+    )
+
+    return reply.status(200).send({ downloadUrl })
+  })
+
   app.get('/links', async (_request, reply) => {
     const allLinks = await db
       .select()
