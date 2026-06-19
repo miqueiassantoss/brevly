@@ -3,9 +3,25 @@ import fastify from 'fastify'
 import cors from '@fastify/cors'
 import { routes } from './routes/index.js'
 
+const REQUIRED_ENV_VARS = [
+  'DATABASE_URL',
+  'CLOUDFLARE_ACCOUNT_ID',
+  'CLOUDFLARE_ACCESS_KEY_ID',
+  'CLOUDFLARE_SECRET_ACCESS_KEY',
+  'CLOUDFLARE_BUCKET',
+]
+
+for (const key of REQUIRED_ENV_VARS) {
+  if (!process.env[key]) {
+    throw new Error(`Missing required environment variable: ${key}`)
+  }
+}
+
 const app = fastify()
 
-await app.register(cors)
+await app.register(cors, {
+  origin: process.env.FRONTEND_URL ?? true,
+})
 await app.register(routes)
 
 app.get('/health', async () => {
