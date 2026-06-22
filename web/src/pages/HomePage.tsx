@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -6,6 +7,9 @@ import { isAxiosError } from 'axios'
 import { api } from '../http/api'
 import linkIconUrl from '../assets/icons/Link.svg'
 import downloadIconUrl from '../assets/icons/DownloadSimple.svg'
+import { Check } from 'lucide-react'
+import copyIconUrl from '../assets/icons/Copy.svg'
+import trashIconUrl from '../assets/icons/Trash.svg'
 
 const formSchema = z.object({
   originalUrl: z
@@ -30,6 +34,12 @@ const formSchema = z.object({
 })
 
 type FormValues = z.infer<typeof formSchema>
+
+const mockLinks = [
+  { id: '1', shortenedUrl: 'meu-link-longo', originalUrl: 'https://www.exemplo.com.br/pagina-muito-longa-com-varios-parametros', accessCount: 10 },
+  { id: '2', shortenedUrl: 'google', originalUrl: 'https://www.google.com', accessCount: 5 },
+  { id: '3', shortenedUrl: 'meu-portfolio', originalUrl: 'https://portfolio.exemplo.com.br/projetos/desenvolvimento-web', accessCount: 23 },
+]
 
 export function HomePage() {
   const {
@@ -56,6 +66,16 @@ export function HomePage() {
     ? ((mutationError.response?.data as { message?: string })?.message ?? 'Erro ao criar link')
     : null
 
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
+
+  const hasLinks = true
+
+  function handleCopy(id: string, shortenedUrl: string) {
+    navigator.clipboard.writeText(`${import.meta.env.VITE_FRONTEND_URL}/${shortenedUrl}`)
+    setCopiedLinkId(id)
+    setTimeout(() => setCopiedLinkId(null), 2000)
+  }
+
   function onSubmit(data: FormValues) {
     resetMutation()
     mutate(data)
@@ -65,13 +85,13 @@ export function HomePage() {
     <div className="flex flex-col md:flex-row items-start gap-6">
 
       {/* ── Left card: create link ── */}
-      <div className="bg-white rounded-lg shadow-sm p-8 w-95 h-85">
-        <h2 className="text-xl font-bold text-gray-600 mb-6">Novo link</h2>
+      <div className="bg-white rounded-lg shadow-sm w-full h-auto p-6 md:p-8 md:w-95 md:h-85">
+        <h2 className="text-xl font-bold text-gray-600 m-5 md:mb-6 md:mt-0 md:mx-0">Novo link</h2>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
 
           {/* LINK ORIGINAL */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 mb-4 md:mb-0">
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
               Link original
             </label>
@@ -93,7 +113,7 @@ export function HomePage() {
           </div>
 
           {/* LINK ENCURTADO */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 mb-4 md:mb-0">
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
               Link encurtado
             </label>
@@ -135,15 +155,15 @@ export function HomePage() {
       </div>
 
       {/* ── Right card: links list ── */}
-      <div className="bg-white rounded-lg shadow-sm p-8 w-145 h-58.5">
+      <div className="bg-white rounded-lg shadow-sm w-full h-auto p-6 md:p-8 md:w-145">
 
         {/* Card header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-row justify-between items-center mb-5 md:gap-0">
           <h2 className="text-xl font-bold text-gray-600">Meus links</h2>
           <button
             type="button"
-            className="flex items-center gap-1.5 bg-gray-100 text-gray-500 text-xs font-semibold
-              px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-1.5 bg-[#eef0f4] text-gray-500 text-xs font-semibold
+              w-25 h-8 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer md:w-auto md:h-auto md:px-4 md:py-2"
           >
             <img src={downloadIconUrl} alt="" className="w-3.5 h-3.5 opacity-50" />
             Baixar CSV
@@ -153,13 +173,51 @@ export function HomePage() {
         {/* Divider */}
         <div className="border-t border-gray-200" />
 
-        {/* Empty state */}
-        <div className="flex flex-col items-center justify-center py-14 gap-3">
-          <img src={linkIconUrl} alt="" className="w-8 h-8 opacity-30" />
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
-            Ainda não existem links cadastrados
-          </p>
-        </div>
+        {hasLinks ? (
+          <ul>
+            {mockLinks.map(link => (
+              <li key={link.id} className="flex items-center justify-between py-4 border-b border-gray-200">
+
+                {/* Left: link texts */}
+                <div className="w-39.25 h-9.5 md:w-86.75 flex flex-col overflow-hidden min-w-0">
+                  <span className="text-[15px] font-semibold text-blue-base truncate mb-1">
+                    brev.ly/{link.shortenedUrl}
+                  </span>
+                  <span className="text-sm text-gray-500 truncate">{link.originalUrl}</span>
+                </div>
+
+                {/* Right: access count + action icons */}
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-500 mx-5 whitespace-nowrap">{link.accessCount} acessos</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(link.id, link.shortenedUrl)}
+                      className={`w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
+                        copiedLinkId === link.id ? 'bg-green-50' : 'bg-[#eef0f4]'
+                      }`}
+                    >
+                      {copiedLinkId === link.id
+                        ? <Check size={16} className="text-green-600" />
+                        : <img src={copyIconUrl} alt="Copiar link" className="w-4 h-4" />}
+                    </button>
+                    <button type="button" className="w-8 h-8 bg-[#eef0f4] rounded-md flex items-center justify-center cursor-pointer">
+                      <img src={trashIconUrl} alt="Excluir link" className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-14 gap-3">
+            <img src={linkIconUrl} alt="" className="w-8 h-8 opacity-30" />
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
+              Ainda não existem links cadastrados
+            </p>
+          </div>
+        )}
       </div>
 
     </div>
