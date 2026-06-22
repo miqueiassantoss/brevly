@@ -33,15 +33,11 @@
   --text-xs--line-height: 14px;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+
 
 body {
   font-family: var(--font-sans);
-  background-color: #F9F9FB;
+  background-color: #eef0f4;
   color: #1F2025;
   -webkit-font-smoothing: antialiased;
 }
