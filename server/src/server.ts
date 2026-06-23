@@ -21,6 +21,7 @@ const app = fastify()
 
 await app.register(cors, {
   origin: process.env.FRONTEND_URL ?? true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 })
 await app.register(routes)
 

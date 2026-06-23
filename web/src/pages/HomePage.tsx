@@ -2,19 +2,19 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { api } from '../http/api'
+import { Check } from 'lucide-react'
+import { getLinks, createLink, deleteLink } from '../http/links'
 import linkIconUrl from '../assets/icons/Link.svg'
 import downloadIconUrl from '../assets/icons/DownloadSimple.svg'
-import { Check } from 'lucide-react'
 import copyIconUrl from '../assets/icons/Copy.svg'
 import trashIconUrl from '../assets/icons/Trash.svg'
 
 const formSchema = z.object({
   originalUrl: z
     .string()
-    .min(1, 'URL é obrigatória')
+    .min(1, 'Informe uma url')
     .refine(
       val => {
         try {
@@ -30,18 +30,32 @@ const formSchema = z.object({
     .string()
     .min(3, 'Mínimo de 3 caracteres')
     .max(50, 'Máximo de 50 caracteres')
-    .regex(/^[a-zA-Z0-9_-]+$/, 'Apenas letras, números, hífens e underscores'),
+    .regex(/^[a-z0-9]+$/, 'Apenas letras minúsculas e números'),
 })
 
 type FormValues = z.infer<typeof formSchema>
 
-const mockLinks = [
-  { id: '1', shortenedUrl: 'meu-link-longo', originalUrl: 'https://www.exemplo.com.br/pagina-muito-longa-com-varios-parametros', accessCount: 10 },
-  { id: '2', shortenedUrl: 'google', originalUrl: 'https://www.google.com', accessCount: 5 },
-  { id: '3', shortenedUrl: 'meu-portfolio', originalUrl: 'https://portfolio.exemplo.com.br/projetos/desenvolvimento-web', accessCount: 23 },
-]
+function LinkSkeleton() {
+  return (
+    <li className="flex items-center justify-between py-4 border-b border-gray-200 animate-pulse">
+      <div className="w-39.25 h-9.5 md:w-86.75 flex flex-col gap-2 overflow-hidden min-w-0">
+        <div className="h-3.5 w-36 bg-gray-200 rounded" />
+        <div className="h-3 w-56 bg-gray-200 rounded" />
+      </div>
+      <div className="flex items-center">
+        <div className="h-3.5 w-14 bg-gray-200 rounded mx-5" />
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gray-200 rounded-md" />
+          <div className="w-8 h-8 bg-gray-200 rounded-md" />
+        </div>
+      </div>
+    </li>
+  )
+}
 
 export function HomePage() {
+  const queryClient = useQueryClient()
+
   const {
     register,
     handleSubmit,
@@ -49,16 +63,40 @@ export function HomePage() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(formSchema) })
 
+  // Destructured once so we can intercept onChange for real-time sanitization
+  const { onChange: onSlugChange, ...slugProps } = register('shortenedUrl')
+
+  const shortLinkBase = (import.meta.env.VITE_FRONTEND_URL as string).replace(/^https?:\/\//, '')
+
+  const { data: links = [], isLoading, isError } = useQuery({
+    queryKey: ['links'],
+    queryFn: getLinks,
+  })
+
   const {
-    mutate,
+    mutate: submitLink,
     isPending,
     error: mutationError,
     reset: resetMutation,
   } = useMutation({
-    mutationFn: (data: FormValues) => api.post('/links', data).then(r => r.data),
-    onSuccess: data => {
-      console.log('Link criado:', data)
+    mutationFn: (data: FormValues) => createLink(data),
+    onSuccess: () => {
       reset()
+      queryClient.invalidateQueries({ queryKey: ['links'] })
+    },
+  })
+
+  const {
+    mutate: handleDelete,
+    isPending: isDeleting,
+    variables: deletingId,
+  } = useMutation({
+    mutationFn: (id: string) => deleteLink(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['links'] })
+    },
+    onError: (error) => {
+      console.error('[deleteLink] falhou:', error)
     },
   })
 
@@ -68,8 +106,6 @@ export function HomePage() {
 
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
 
-  const hasLinks = true
-
   function handleCopy(id: string, shortenedUrl: string) {
     navigator.clipboard.writeText(`${import.meta.env.VITE_FRONTEND_URL}/${shortenedUrl}`)
     setCopiedLinkId(id)
@@ -78,7 +114,7 @@ export function HomePage() {
 
   function onSubmit(data: FormValues) {
     resetMutation()
-    mutate(data)
+    submitLink(data)
   }
 
   return (
@@ -126,9 +162,13 @@ export function HomePage() {
             >
               <span className="text-md text-gray-300 select-none shrink-0">brev.ly/</span>
               <input
-                {...register('shortenedUrl')}
+                {...slugProps}
                 type="text"
                 disabled={isPending}
+                onChange={(e) => {
+                  e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')
+                  onSlugChange(e)
+                }}
                 className="flex-1 py-3 bg-transparent outline-none text-md text-gray-600 min-w-0 disabled:cursor-not-allowed"
               />
             </div>
@@ -173,15 +213,29 @@ export function HomePage() {
         {/* Divider */}
         <div className="border-t border-gray-200" />
 
-        {hasLinks ? (
+        {isLoading && (
           <ul>
-            {mockLinks.map(link => (
+            <LinkSkeleton />
+            <LinkSkeleton />
+            <LinkSkeleton />
+          </ul>
+        )}
+
+        {!isLoading && isError && (
+          <p className="text-xs text-danger font-semibold text-center py-8">
+            Não foi possível carregar os links. Verifique a conexão com o servidor.
+          </p>
+        )}
+
+        {!isLoading && !isError && links.length > 0 && (
+          <ul>
+            {links.map(link => (
               <li key={link.id} className="flex items-center justify-between py-4 border-b border-gray-200">
 
                 {/* Left: link texts */}
                 <div className="w-39.25 h-9.5 md:w-86.75 flex flex-col overflow-hidden min-w-0">
                   <span className="text-[15px] font-semibold text-blue-base truncate mb-1">
-                    brev.ly/{link.shortenedUrl}
+                    {shortLinkBase}/{link.shortenedUrl}
                   </span>
                   <span className="text-sm text-gray-500 truncate">{link.originalUrl}</span>
                 </div>
@@ -201,7 +255,17 @@ export function HomePage() {
                         ? <Check size={16} className="text-green-600" />
                         : <img src={copyIconUrl} alt="Copiar link" className="w-4 h-4" />}
                     </button>
-                    <button type="button" className="w-8 h-8 bg-[#eef0f4] rounded-md flex items-center justify-center cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Você realmente quer apagar o link ${link.shortenedUrl}?`)) {
+                          handleDelete(link.id)
+                        }
+                      }}
+                      disabled={isDeleting && deletingId === link.id}
+                      className="w-8 h-8 bg-[#eef0f4] rounded-md flex items-center justify-center cursor-pointer
+                        disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       <img src={trashIconUrl} alt="Excluir link" className="w-4 h-4" />
                     </button>
                   </div>
@@ -210,7 +274,9 @@ export function HomePage() {
               </li>
             ))}
           </ul>
-        ) : (
+        )}
+
+        {!isLoading && !isError && links.length === 0 && (
           <div className="flex flex-col items-center justify-center py-14 gap-3">
             <img src={linkIconUrl} alt="" className="w-8 h-8 opacity-30" />
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest text-center">
@@ -218,6 +284,7 @@ export function HomePage() {
             </p>
           </div>
         )}
+
       </div>
 
     </div>

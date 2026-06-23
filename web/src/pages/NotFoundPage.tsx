@@ -7,7 +7,7 @@ export function NotFoundPage() {
       <div
         className="
           w-full mx-3 px-5 py-12
-          md:w-[580px] md:h-[296px] md:mx-0 md:px-12 md:py-16
+          md:w-145 md:h-74 md:mx-0 md:px-12 md:py-16
           bg-white rounded-lg shadow-sm
           flex flex-col items-center text-center
         "
