@@ -1,24 +1,23 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Variáveis de Ambiente (Segurança)
+.env
+.env.*
+!.env.example
+
 # Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Sistema
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+
+# Editor (Opcional - só mantenha se quiser compartilhar config de VS Code)
+.vscode/
+.idea/

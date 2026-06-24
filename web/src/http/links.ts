@@ -27,3 +27,8 @@ export async function createLink(payload: {
 export async function deleteLink(id: string): Promise<void> {
   await api.delete(`/links/${id}`)
 }
+
+export async function exportLinks(): Promise<{ downloadUrl: string }> {
+  const { data } = await api.get<{ downloadUrl: string }>('/links/export')
+  return data
+}

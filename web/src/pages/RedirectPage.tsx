@@ -1,6 +1,20 @@
+import { useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import Symbol from '../assets/vectors/Logo_Icon.svg'
 
 export function RedirectPage() {
+  const { shortenedUrl } = useParams<{ shortenedUrl: string }>()
+
+  const redirectUrl = `${import.meta.env.VITE_BACKEND_URL}/links/${shortenedUrl}`
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.location.replace(redirectUrl)
+    }, 1200)
+
+    return () => clearTimeout(timer)
+  }, [redirectUrl])
+
   return (
     <div className="flex justify-center">
       <div
@@ -21,7 +35,7 @@ export function RedirectPage() {
 
         <p className="text-md text-gray-500 font-semibold">
           Não foi redirecionado?{' '}
-          <a href="#" className="text-blue-base font-semibold hover:underline">
+          <a href={redirectUrl} className="text-blue-base font-semibold hover:underline">
             Acesse aqui
           </a>
         </p>

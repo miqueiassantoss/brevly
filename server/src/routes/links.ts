@@ -124,11 +124,11 @@ export async function linksRoutes(app: FastifyInstance) {
         .returning()
 
       return reply.status(201).send(created)
-    } catch (e: any) {
-      if (e.code === "23505") {
+    } catch (e) {
+      if ((e as { code?: string }).code === '23505') {
         return reply
           .status(409)
-          .send({ message: "shortened_url already in use." })
+          .send({ message: 'shortened_url already in use.' })
       }
       throw e
     }
