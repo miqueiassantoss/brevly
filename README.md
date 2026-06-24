@@ -97,7 +97,7 @@ CLOUDFLARE_BUCKET=""          # Nome do bucket criado
 
 Optamos por **não tornar o bucket público**. Em vez disso, após o upload do CSV, a API gera uma URL pré-assinada com validade de 5 minutos e a retorna ao frontend, que inicia o download diretamente no navegador. Essa abordagem é mais segura e é uma prática padrão da indústria, pois garante que os arquivos exportados só sejam acessíveis por quem solicitou a exportação.
 
-A variável `CLOUDFLARE_PUBLIC_URL` está presente no `docker-compose.yml` por completude, mas não é consumida pela aplicação.
+A variável `CLOUDFLARE_PUBLIC_URL` está presente no `docker-compose.yml`, mas não é consumida pela aplicação.
 
 ---
 
